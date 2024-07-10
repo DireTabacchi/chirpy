@@ -5,19 +5,28 @@ import (
     "net/http"
 )
 
+type apiConfig struct {
+    fileserverHits int
+}
+
 func main() {
     const port = "8080"
     const filepathRoot = "."
-    const filepathLogo = "./assets/logo.png"
+
+    apiCfg := &apiConfig{fileserverHits: 0}
 
     serveMux := http.NewServeMux()
-    serveMux.Handle("/app/*",
+    fsHandler := apiCfg.middlewareMetricsInc(
         http.StripPrefix("/app/", http.FileServer(http.Dir(filepathRoot))),
     )
-    serveMux.Handle("/app/assets/",
-        http.StripPrefix("/app/assets/", http.FileServer(http.Dir("assets"))),
-    )
-    serveMux.HandleFunc("/healthz", readinessHandler)
+
+    serveMux.Handle("/app/*", fsHandler)
+
+    serveMux.HandleFunc("GET /api/healthz", readinessHandler)
+    serveMux.HandleFunc("GET /api/reset", apiCfg.resetMetricsHandler)
+    serveMux.HandleFunc("GET /admin/metrics", apiCfg.metricsHandler)
+
+    serveMux.HandleFunc("POST /api/chirps", validateChirpHandler)
 
     srv := &http.Server{
         Addr: ":" + port,
@@ -27,13 +36,4 @@ func main() {
     log.Printf("Serving files from %s on port: %s\n", filepathRoot, port)
     log.Fatal(srv.ListenAndServe())
 
-}
-
-func readinessHandler(w http.ResponseWriter, r *http.Request) {
-    w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-    w.WriteHeader(200)
-    _, err := w.Write([]byte("OK"))
-    if err != nil {
-        log.Printf("Readiness handler exprienced error while writing body:\n%v", err)
-    }
 }
