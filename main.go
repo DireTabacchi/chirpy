@@ -34,12 +34,15 @@ func main() {
 
     serveMux.Handle("/app/*", fsHandler)
 
+    // Maintenance/Metrics endpoints
     serveMux.HandleFunc("GET /api/healthz", readinessHandler)
     serveMux.HandleFunc("GET /api/reset", apiCfg.resetMetricsHandler)
     serveMux.HandleFunc("GET /admin/metrics", apiCfg.metricsHandler)
 
+    // Chirp endpoints
     serveMux.HandleFunc("POST /api/chirps", apiCfg.postChirpHandler)
     serveMux.HandleFunc("GET /api/chirps", apiCfg.getChirpsHandler)
+    serveMux.HandleFunc("GET /api/chirps/{id}", apiCfg.getChirpHandler)
 
     srv := &http.Server{
         Addr: ":" + port,
