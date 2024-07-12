@@ -9,6 +9,7 @@ import (
 func (cfg *apiConfig) postUserHandler(w http.ResponseWriter, r *http.Request) {
     type userPost struct {
         Email string `json:"email"`
+        Password string `json:"password"`
     }
 
     decoder := json.NewDecoder(r.Body)
@@ -21,7 +22,7 @@ func (cfg *apiConfig) postUserHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    postedUser, err := cfg.db.CreateUser(user.Email)
+    postedUser, err := cfg.db.CreateUser(user.Email, user.Password)
     if err != nil {
         log.Printf("Error creating user: %v\n", err)
         respondWithError(w, http.StatusInternalServerError, "Couldn't create user")

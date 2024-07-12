@@ -1,15 +1,17 @@
 package main
 
 import (
-    "log"
-    "net/http"
+	"log"
+	"net/http"
+	"os"
 
-    "github.com/DireTabacchi/chirpy/internal/database"
+	"github.com/DireTabacchi/chirpy/internal/database"
 )
 
 type apiConfig struct {
     fileserverHits int
     db *database.DB
+    jwtSecret string
 }
 
 func main() {
@@ -24,7 +26,7 @@ func main() {
     apiCfg := &apiConfig{
         fileserverHits: 0,
         db: db,
-
+        jwtSecret: os.Getenv("JWT_SECRET"),
     }
 
     serveMux := http.NewServeMux()
@@ -46,6 +48,8 @@ func main() {
 
     // User endpoints
     serveMux.HandleFunc("POST /api/users", apiCfg.postUserHandler)
+
+    serveMux.HandleFunc("POST /api/login", apiCfg.loginHandler)
 
     srv := &http.Server{
         Addr: ":" + port,
