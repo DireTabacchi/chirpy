@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/DireTabacchi/chirpy/internal/database"
+    "github.com/joho/godotenv"
 )
 
 type apiConfig struct {
@@ -21,6 +22,11 @@ func main() {
     db, err := database.NewDB("database.json")
     if err != nil {
         log.Fatal(err)
+    }
+
+    err = godotenv.Load()
+    if err != nil {
+        log.Fatalf("Error loading secrets: %v\n", err)
     }
 
     apiCfg := &apiConfig{
