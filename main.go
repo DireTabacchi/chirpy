@@ -53,9 +53,12 @@ func main() {
     serveMux.HandleFunc("GET /api/chirps/{id}", apiCfg.getChirpHandler)
 
     // User endpoints
-    serveMux.HandleFunc("POST /api/users", apiCfg.postUserHandler)
+    serveMux.HandleFunc("POST /api/users", apiCfg.createUserHandler)
+    serveMux.HandleFunc("PUT /api/users", apiCfg.updateUserHandler)
 
     serveMux.HandleFunc("POST /api/login", apiCfg.loginHandler)
+    serveMux.HandleFunc("POST /api/refresh", apiCfg.refreshHandler)
+    serveMux.HandleFunc("POST /api/revoke", apiCfg.revokeHandler)
 
     srv := &http.Server{
         Addr: ":" + port,

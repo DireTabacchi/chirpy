@@ -4,58 +4,66 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
-	"golang.org/x/crypto/bcrypt"
-    "github.com/DireTabacchi/chirpy/internal/auth"
+	"github.com/DireTabacchi/chirpy/internal/auth"
 )
 
 func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
-    type userPost struct {
-        Email string            `json:"email"`
-        Password string         `json:"password"`
-        ExpiresInSeconds int    `json:"expires_in_seconds,omitempty"`
+    type parameters struct {
+        Email       string `json:"email"`
+        Password    string `json:"password"`
     }
 
-    type userResponse struct {
-        Email string    `json:"email"`
-        ID int          `json:"id"`
-        Token string    `json:"token"`
+    type response struct {
+        User
+        Token           string `json:"token"`
+        RefreshToken    string `json:"refresh_token"`
     }
 
     decoder := json.NewDecoder(r.Body)
-    user := userPost{}
-
-
-    err := decoder.Decode(&user)
+    params := parameters{}
+    err := decoder.Decode(&params)
     if err != nil {
-        log.Printf("Error decoding user login: %v\n", err)
         respondWithError(w, http.StatusInternalServerError, "Couldn't decode login")
         return
     }
 
-    result, err := cfg.db.GetUser(user.Email, user.Password)
-    if err == bcrypt.ErrMismatchedHashAndPassword {
-        respondWithError(w, http.StatusUnauthorized, "Incorrect password")
-        return
-    } else if err != nil {
-        respondWithError(w, http.StatusInternalServerError, err.Error())
+    user, err := cfg.db.GetUserByEmail(params.Email)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, "Couldn't get user")
+    }
+
+    err = auth.CheckHashedPassword(params.Password, user.HashedPassword)
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, "Invalid password")
         return
     }
 
-    signedJWT, err := auth.GetJWTToken(result.ID, user.ExpiresInSeconds, cfg.jwtSecret)
+    signedJWT, err := auth.MakeJWT(user.ID, cfg.jwtSecret, time.Hour)
     if err != nil {
         log.Printf("Error getting signed token: %v/n", err)
         respondWithError(w, http.StatusInternalServerError, "Couldn't get signed token")
         return
     }
 
-    resp := userResponse{
-        Email: result.Email,
-        ID: result.ID,
-        Token: signedJWT,
+    refreshToken, err := auth.MakeRefreshToken()
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, "Couldn't make refresh token")
+        return
     }
 
-    log.Printf("Got token: %s\n", signedJWT)
+    err = cfg.db.SaveRefreshToken(user.ID, refreshToken)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, "Couldn't save refresh token")
+    }
 
-    respondWithJSON(w, http.StatusOK, resp)
+    respondWithJSON(w, http.StatusOK, response{
+        User{
+            Email: user.Email,
+            ID: user.ID,
+        },
+        signedJWT,
+        refreshToken,
+    })
 }
